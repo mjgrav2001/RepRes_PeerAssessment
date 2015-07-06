@@ -1,0 +1,164 @@
+
+# Analysis of Activity Data in Peer 1 Assessment for 'Reproducible Research'
+
+## This is the R markdown file to describe the results of the Peer 1 Assessment for the course 'Reproducible Research'. 
+
+---
+title: "RepData_CP1.Rmd"
+author: "Mark Jack"
+date: "June 14, 2015"
+output: html_document
+---
+
+The initial libraries are being loaded and the data is stored in a file named 'activity.csv' with a data table then created named activity_data and missing data subsequently omitted in steps_data as preparation for the first histogram plot.
+
+```{r, echo=FALSE}
+# Necessary library calls in R:
+library(plyr)
+library(dplyr)
+library(Hmisc)
+library(reshape2)
+library(ggplot2)
+library(lubridate)
+#
+# Load data from working directory and store as data frame 'activity_data':
+activity_data <- read.csv("/Users/markjack/data/activity.csv")
+```
+
+A histogram is shown below that shows the total number of steps taken after the corresponding data is calculated and shown: 
+```{r}
+# Calculate and print sum of total steps taken each day from data set 'activity_data':
+steps_data_melt <- melt(activity_data, id.vars = "date", measure.vars = "steps", na.rm = TRUE)
+steps_data_select <- group_by(steps_data_melt, date, variable)                       
+steps_data_sum <- ddply(steps_data_select, c("date"), summarise, sum = sum(value, na.rm = TRUE))
+head(steps_data_sum, 10)
+```
+
+```{r, echo=FALSE}
+# Plot total number of steps taken each day as a histogram:
+par(mfrow = c(1,3))
+par(mar = c(4,4,2,2))
+histogram(steps_data_sum$sum, nint = 22, col = "red", 
+          ylab = "frequency", xlab = "Total number of steps taken, N", 
+          main = "Total number of steps taken each day", xlim=range(0:22000))
+#dev.copy(png, file = "/Users/markjack/data/plot_repdata_steps_sum.png")
+#dev.off()
+```
+
+Here is the R code to calculate the mean and median of the number of steps taken per day for all the 5-minute time intervals across a day:
+```{r}
+# Calculate and print mean and median numbes of steps taken each day from data set 'activity_data':
+ac_data_melt <- melt(activity_data, id.vars = "date", measure.vars = "steps", na.rm = TRUE)
+ac_data_select <- group_by(ac_data_melt, date, variable)                       
+ac_data_mean <- ddply(ac_data_select, c("date"), summarise, mean = mean(value, na.rm = TRUE))
+head(ac_data_mean, 10)
+ac_data_med <- ddply(ac_data_select, c("date"), summarise, med = median(value, na.rm = TRUE))
+head(ac_data_med, 10)
+```
+
+To determine in which 5-minute time interval the largest average number of steps taken on a day occurs following R code is proposed:
+```{r}
+ac_data_int_melt <- melt(activity_data, id.vars = "interval", measure.vars = "steps", na.rm = TRUE)
+ac_data_int_select <- group_by(ac_data_int_melt, interval, variable)                         
+ac_data_int_mean <- ddply(ac_data_int_select, c("interval"), summarise, mean = mean(value, na.rm = TRUE))
+ac_data_int_mean$mean[99:108]
+```
+
+Thus, the largest average number of steps taken on a day can be found in the 5-minute time interval [835, 840].
+```{r, echo=FALSE}
+# Plot average number of steps taken per 5-min time interval in a day (y-axis) versus 5-min time intervals 
+# in one day (x-axis) (averaged over all days recorded) using a line chart (type="l"):
+par(mfrow = c(1,2))
+par(mar = c(4,4,1.5,2.5))
+plot(ac_data_int_mean$interval, ac_data_int_mean$mean, type="l", col="red", cex.lab=0.8, lwd=2, 
+     xlab = "5-min time interval T [min]", ylab = "Mean number N of steps taken per day", 
+     main = "Mean no. of steps taken per day", xaxp  = c(0, 2400, 24))
+plot(ac_data_int_mean$interval, ac_data_int_mean$mean, type="l", col="red", cex.lab=0.8, lwd=2, 
+     xlab = "5-min time interval T [min]", ylab = "Mean number N of steps taken per day", 
+     main = "Zoom: N max. at T = 835 min", xaxp  = c(0, 2400, 480), xlim = c(800,900))
+#dev.copy(png, file = "/Users/markjack/data/plot_repdata_int_means.png")
+#dev.off()
+```
+
+Calculate the total number of missing values in the data:
+```{r}
+# Store data set 'activity_data' in new data set 'activity_data_imp' and calculate total number of missing values (NA)
+# in the data set:
+activity_data_imp <- activity_data
+x <- activity_data_imp$steps
+length(x[is.na(x)])
+```
+
+'Impute' i.e. replace missing values (NA) in the data set with the calculated total average number of steps taken per day:
+```{r}
+# 'Impute' i.e. replace missing values (NA) in data set 'activity_data_imp' with calculated 
+# total average number of steps taken over all recorded days and re-store in data set 'activity_data_imp':
+activity_data_imp$steps <- as.numeric(impute(activity_data_imp$steps, mean))
+head(activity_data_imp, 10)
+```
+
+Preparing the same data but now calculating the mean number of steps taken per weekday for each 5-minute interval:
+```{r}
+# Calculate sum of total steps taken each day in imputed data set 'activity_data_imp':
+steps_data_melt_imp <- melt(activity_data_imp, id.vars = "date", measure.vars = "steps", na.rm = TRUE)
+steps_data_select_imp <- group_by(steps_data_melt_imp, date, variable)                       
+steps_data_sum_imp <- ddply(steps_data_select_imp, c("date"), summarise, sum = sum(value, na.rm = TRUE))
+head(steps_data_sum_imp, 10)
+```
+
+As an illustration the total number of steps per day are shown in a histogram plot below for the imputed data:
+```{r, echo=FALSE}
+# Plot total number of steps taken each day as a histogram for imputed data set stored as 'steps_data_sum_imp':
+par(mfrow = c(1,1))
+par(mar = c(4,4,2,2))
+histogram(steps_data_sum_imp$sum, nint = 22, col = "red", ylab = "frequency", xlab = "Total number of steps taken, N", main = "Total number of steps taken each day", xlim=range(0:22000))
+#dev.copy(png, file = "/Users/markjack/data/plot_repdata_steps_sum_imp.png")
+#dev.off()
+```
+
+Calculate and print mean and median number of steps taken each day for the imputed data set:
+```{r}
+# Calculate and print mean and median number of steps taken each day for imputed data set 'activity_data_imp':
+ac_data_melt_imp <- melt(activity_data_imp, id.vars = "date", measure.vars = "steps", na.rm = TRUE)
+ac_data_select_imp <- group_by(ac_data_melt_imp, date, variable)                       
+ac_data_mean_imp <- ddply(ac_data_select_imp, c("date"), summarise, mean = mean(value, na.rm = TRUE))
+head(ac_data_mean_imp, 10)
+ac_data_med_imp <- ddply(ac_data_select_imp, c("date"), summarise, med = median(value, na.rm = TRUE))
+head(ac_data_med_imp, 10)
+```
+
+Compare the activities on weekdays and weekend days: Calculate the average number of steps taken 
+per 5-min time interval in a day, averaged either over all weekdays or over all weekend days, respectively:
+```{r}
+# Comparing of activities on weekdays and weekend days: Calculate average number of steps taken 
+# per 5-min time interval in a day, averaged either over all weekdays or over all weekend days, respectively:
+activity_data_imp$date <- as.character(weekdays(as.Date(activity_data_imp$date)))
+activity_data_imp$weekday = activity_data_imp$date %in% c("Monday","Tuesday","Wednesday","Thursday","Friday")
+ac_data_int_melt_wdays <- melt(activity_data_imp, id.vars = c("interval", "weekday"), measure.vars = "steps", na.rm = TRUE)
+ac_data_int_select_wdays <- group_by(ac_data_int_melt_wdays, weekday, interval, variable)   
+ac_data_int_wdays <- ddply(ac_data_int_select_wdays, c("weekday", "interval"), summarise, mean = mean(value, na.rm = TRUE))
+head(ac_data_int_wdays, 10)
+```
+
+Plot the average number of steps taken per 5-min time interval in a day (y-axis) versus 5-min time intervals 
+in one day (x-axis) (averaged either over all weekdays or over all weekend days, respectively) in a panel plot using a line chart (type="l"):
+```{r, echo=FALSE}
+# Comparing of activities on weekdays and weekend days: Plot average number of steps taken per 5-min time interval 
+# in a day (y-axis) versus 5-min time intervals in one day (x-axis) (averaged either over all weekdays 
+# or over all weekend days, respectively) in a panel plot using a line chart (type="l"):
+par(mfrow = c(1,2))
+par(mar = c(4,4,2,2))
+facet_names <- list("TRUE" = "Weekday (Mon-Fri)", "FALSE" = "Weekend Day (Sat, Sun)")
+facet_labeller <- function(weekday,value){
+  value <- as.character(value)
+  return(facet_names[value])
+}
+g <- ggplot(ac_data_int_wdays, aes(interval, mean))
+g1 <- g + geom_point(color = "blue") + geom_line(color = "blue") + facet_grid(. ~ weekday, labeller = facet_labeller) 
+g2 <- g1 + geom_smooth(color = "red", method = "lm") 
+g3 <- g2 + labs(title = "Average number of steps taken on weekend days and weekdays") 
+g4 <- g3 + labs(x = "5-min time interval T [min]", y = "Mean number of steps N per 5-min interval")
+g4
+#dev.copy(png, file = "/Users/markjack/data/plot_repdata_int_weekday.png")
+#dev.off()
+```
